@@ -95,18 +95,24 @@ func (wls *WorldLadderScrapper) Start(interval time.Duration) {
 }
 
 func (wls *WorldLadderScrapper) Scrap() {
+	fmt.Printf("[ %s ] Downloading ladder of %s world...\n", time.Now().Format("2006-01-02 15:04:05"), wls.world)
+	
 	wls.timestamp = time.Now()
 	start := time.Now()
-
-	fmt.Printf("[ %s ] Downloading ladder of %s world...\n", time.Now().Format("2006-01-02 15:04:05"), wls.world)
+	
 	wls.wg.Add(1)
+	
 	wls.initChannels()
+	
 	totalPages, _ := wls.getTotalPages()
+	
 	wls.wg.Add(totalPages)
 	wls.wg.Done()
+	
 	go wls.getPageBodies(totalPages)
 	go wls.getPageDocuments()
 	go wls.scrapDocuments()
+	
 	wls.wg.Wait()
 
 	fmt.Printf("[ %s ] Downloading ladder of %s world finished in %s\n", time.Now().Format("2006-01-02 15:04:05"), wls.world, time.Since(start).String())
@@ -128,7 +134,11 @@ func (wls *WorldLadderScrapper) getPageBodies(totalPages int) {
 	for i := 1; i <= totalPages; i++ {
 		fmt.Printf("[ %s ] Downloading page %d of %s world started...\n", time.Now().Format("2006-01-02 15:04:05"), i, wls.world)
 		start := time.Now()
-		pageBody, _ := wls.getPageBody(i)
+		pageBody, err := wls.getPageBody(i)
+		if err != nil {
+			i--
+			continue
+		}
 		wls.pageBodies <- pageBody
 		fmt.Printf("[ %s ] Downloading page %d of %s world finished in %s\n", time.Now().Format("2006-01-02 15:04:05"), i, wls.world, time.Since(start).String())
 	}
@@ -138,7 +148,12 @@ func (wls *WorldLadderScrapper) getPageBodies(totalPages int) {
 
 func (wls *WorldLadderScrapper) getPageDocuments() {
 	for pageBody := range wls.pageBodies {
-		pageDoc, _ := wls.getPageDocument(pageBody)
+		pageDoc, err := wls.getPageDocument(pageBody)
+		if err != nil {
+			fullerr := fmt.Errorf("[ %s ] Error in parsing document during %s world ladder scrapping: %w", time.Now().Format("2006-01-02 15:04:05"), wls.world, err)
+			fmt.Println(fullerr)
+			continue
+		}
 		wls.pageDocs <- pageDoc
 	}
 	close(wls.pageDocs)
@@ -153,6 +168,7 @@ func (wls *WorldLadderScrapper) scrapDocuments() {
 func (wls *WorldLadderScrapper) scrapDocument(doc *goquery.Document) {
 	doc.Find("tbody").Each(func(index int, table *goquery.Selection) {
 		table.Find("tr").Each(wls.processRow)
+		table.Find("tr").Each(wls.scrapLevel)
 	})
 	wls.wg.Done()
 }
@@ -169,11 +185,14 @@ func (wls *WorldLadderScrapper) getTotalPagesFromDoc(doc *goquery.Document) (int
 }
 
 func (wls *WorldLadderScrapper) getPageBody(page int) (io.ReadCloser, error) {
-	res, err := http.Get(WORLD_LADDER_URI + wls.world)
+	res, err := http.Get(WORLD_LADDER_URI + wls.world + "?page=" + strconv.Itoa(page))
 	if err != nil {
-		fmt.Printf("%s", err.Error())
+		fullerr := fmt.Errorf("[ %s ] Error in downloading page %d during %s world ladder scrapping: %w", time.Now().Format("2006-01-02 15:04:05"), page, wls.world, err)
+		fmt.Println(fullerr)
+		return nil, err
 	}
-	return res.Body, err
+
+	return res.Body, nil
 }
 
 func (wls *WorldLadderScrapper) getPageDocument(body io.ReadCloser) (*goquery.Document, error) {
