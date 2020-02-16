@@ -71,44 +71,74 @@ func (ss *StatsScrapper) Scrap() {
 	ss.wg.Wait()
 }
 
-func (ss *StatsScrapper) scrapGeneralStats() {
+func (ss *StatsScrapper) scrapGeneralStats() error {
 	fmt.Printf("[ %s ] Processing general stats started...\n", time.Now().Format("2006-01-02 15:04:05"))
+
+	defer ss.wg.Done()
+
 	start := time.Now()
 	ss.timestamp = time.Now()
 
-	body, _ := ss.getPageBody(STATS_URI)
-	doc, _ := ss.getPageDocument(body)
+	body, err := ss.getPageBody(STATS_URI)
+	if err != nil {
+		return err
+	}
+
+	doc, err := ss.getPageDocument(body)
+	if err != nil {
+		return err
+	}
+
 	ss.fetchGeneralStats(doc)
 
-	ss.wg.Done()
 	fmt.Printf("[ %s ] Processing general stats finished in %s\n", time.Now().Format("2006-01-02 15:04:05"), time.Since(start).String())
+	return nil
 }
 
-func (ss *StatsScrapper) scrapWorldStats() {
+func (ss *StatsScrapper) scrapWorldStats() error {
 	fmt.Printf("[ %s ] Processing worlds stats started...\n", time.Now().Format("2006-01-02 15:04:05"))
+	defer ss.wg.Done()
 	start := time.Now()
 	ss.timestamp = time.Now()
 
-	body, _ := ss.getPageBody(WORLDS_STATS_URI)
-	doc, _ := ss.getPageDocument(body)
+	body, err := ss.getPageBody(WORLDS_STATS_URI)
+	if err != nil {
+		return err
+	}
+
+	doc, err := ss.getPageDocument(body)
+	if err != nil {
+		return err
+	}
+
 	ss.fetchAllPublicWorldStats(doc)
 	ss.fetchAllPrivateWorldStats(doc)
 
-	ss.wg.Done()
 	fmt.Printf("[ %s ] Processing worlds stats finished in %s\n", time.Now().Format("2006-01-02 15:04:05"), time.Since(start).String())
+	return nil
 }
 
-func (ss *StatsScrapper) scrapCharacterActivity() {
+func (ss *StatsScrapper) scrapCharacterActivity() error {
 	fmt.Printf("[ %s ] Processing characters activities stats started...\n", time.Now().Format("2006-01-02 15:04:05"))
-	start := time.Now()
+	defer ss.wg.Done()
 
+	start := time.Now()
 	ss.timestamp = time.Now()
-	body, _ := ss.getPageBody(WORLDS_STATS_URI)
-	doc, _ := ss.getPageDocument(body)
+
+	body, err := ss.getPageBody(WORLDS_STATS_URI)
+	if err != nil {
+		return err
+	}
+
+	doc, err := ss.getPageDocument(body)
+	if err != nil {
+		return err
+	}
 	ss.fetchAllCharacterActivity(doc)
 
-	ss.wg.Done()
 	fmt.Printf("[ %s ] Processing characters activities stats finished in %s\n", time.Now().Format("2006-01-02 15:04:05"), time.Since(start).String())
+
+	return nil
 }
 
 func (ss *StatsScrapper) getPageBody(url string) (io.ReadCloser, error) {
@@ -137,7 +167,7 @@ func (ss *StatsScrapper) fetchGeneralStats(doc *goquery.Document) {
 		case 2:
 			generalStats.Players, _ = ss.fetchNumberWithSuffix(text)
 		case 3:
-			generalStats.MaxOnline, _ = ss.fetchNumberWithSuffix(text)
+			generalStats.Characters, _ = ss.fetchNumberWithSuffix(text)
 		case 4:
 			generalStats.Players24h, _ = ss.fetchNumber(text)
 		}
@@ -237,6 +267,7 @@ func (ss *StatsScrapper) fetchNumberWithPercent(text string) (int, error) {
 }
 
 func (ss *StatsScrapper) fetchNumber(text string) (int, error) {
+	text = strings.ReplaceAll(text, " ", "")
 	online, err := strconv.ParseInt(text, 10, 32)
 	if err == nil {
 		return int(online), nil
