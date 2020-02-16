@@ -50,7 +50,7 @@ type FullCharacter struct {
 	World       string `gorm:"type:varchar(20);primary_key;auto_increment:false"`
 	ProfileID   int    // `gorm:"primary_key;auto_increment:false"`
 	CharacterID int    `gorm:"primary_key;auto_increment:false"`
-	Nick        string `gorm:"type:varchar(20);"`
+	Nick        string `gorm:"type:varchar(30);"`
 	Level       int
 	Class       string `gorm:"type:char(1)"`
 	Honor       int
@@ -96,23 +96,23 @@ func (wls *WorldLadderScrapper) Start(interval time.Duration) {
 
 func (wls *WorldLadderScrapper) Scrap() {
 	fmt.Printf("[ %s ] Downloading ladder of %s world...\n", time.Now().Format("2006-01-02 15:04:05"), wls.world)
-	
+
 	wls.timestamp = time.Now()
 	start := time.Now()
-	
+
 	wls.wg.Add(1)
-	
+
 	wls.initChannels()
-	
+
 	totalPages, _ := wls.getTotalPages()
-	
+
 	wls.wg.Add(totalPages)
 	wls.wg.Done()
-	
+
 	go wls.getPageBodies(totalPages)
 	go wls.getPageDocuments()
 	go wls.scrapDocuments()
-	
+
 	wls.wg.Wait()
 
 	fmt.Printf("[ %s ] Downloading ladder of %s world finished in %s\n", time.Now().Format("2006-01-02 15:04:05"), wls.world, time.Since(start).String())

@@ -43,7 +43,7 @@ type WorldStats struct {
 type CharacterActivity struct {
 	Timestamp time.Time
 	World     string `gorm:"type:varchar(20);"`
-	Nick      string `gorm:"type:varchar(20);"`
+	Nick      string `gorm:"type:varchar(30);"`
 }
 
 func (ss *StatsScrapper) Init(db *gorm.DB) {
