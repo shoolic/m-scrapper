@@ -1,2 +1,2 @@
 # player-activity-scapper
-A scrapper for player activity in Margonem MMORPG. 
+A scrapper for player activity in Mar. MMORPG. 
